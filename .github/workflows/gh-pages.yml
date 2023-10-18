@@ -1,9 +1,9 @@
-# generate docs and publish on gh-pages branch
+# generate docs and publish on gh-pages branch xx
 name: gh-pages
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "dev/morgan/godoc-gh-pages-test" ]
   workflow_dispatch:
 
 permissions:
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
+    if: ${{ github.repository == 'thehowl/gno' }} # Alternatively, validate based on provided tokens and permissions.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +29,7 @@ jobs:
           path: ./misc/gendocs/godoc
 
   deploy:
-    if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
+    if: ${{ github.repository == 'thehowl/gno' }} # Alternatively, validate based on provided tokens and permissions.
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"slices"
 	"strconv"
@@ -395,6 +396,18 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 					panic("packages must be fetched with GetPackage()")
 				}
 			}
+
+			if _, err := os.Stat("dump.log"); err == nil {
+				f, err := os.OpenFile("dump.log", os.O_RDWR|os.O_APPEND, 0644)
+				if err != nil {
+					panic(err)
+				}
+				fmt.Fprintf(f, "============== defaultStore.GetObject(%q)\n%v\n",
+					oid,
+					oo.String())
+				f.Close()
+			}
+
 			return oo
 		}
 	}

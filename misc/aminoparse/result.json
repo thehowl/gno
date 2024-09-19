@@ -1,0 +1,97 @@
+{
+  "jsonrpc": "2.0",
+  "id": "",
+  "result": {
+    "block_meta": {
+      "block_id": {
+        "hash": "KvtMpJf1BRihLi9E64xWUockZ9OEW23G5GGrWEiyZtI=",
+        "parts": {
+          "total": "1",
+          "hash": "YHn8bqkFvFSXIvXlVCLoigKyFok7x+JtiwGSf3N7sxI="
+        }
+      },
+      "header": {
+        "version": "v1.0.0-rc.0",
+        "chain_id": "portal-loop",
+        "height": "5125",
+        "time": "2024-09-19T14:55:19.117392155Z",
+        "num_txs": "1",
+        "total_txs": "1",
+        "app_version": "",
+        "last_block_id": {
+          "hash": "ENPPw2E6HgRO6lPKF1JPixtZV6SGAqEMtAphVugPbwE=",
+          "parts": {
+            "total": "1",
+            "hash": "B5gtgduI+gnZkzjXBkyXp6L9y9KJfhovEH8Ocmz+FVI="
+          }
+        },
+        "last_commit_hash": "hXwJDzQEH2KeQceuEix8EipSVtWPsQBN4mQ3p54gAAs=",
+        "data_hash": "ZXgFnHVQ2MKJCwPHrdbryziPISHQWklDhkiQDtEFW20=",
+        "validators_hash": "KOYcYpktmbYZRrmgsbwijAxjYNEmxfIvo+BKvYlb/MU=",
+        "next_validators_hash": "KOYcYpktmbYZRrmgsbwijAxjYNEmxfIvo+BKvYlb/MU=",
+        "consensus_hash": "XnpWOYgADUtzmaS7Wk+oToT646WFCajgO6lsNWrfgKc=",
+        "app_hash": "BGqFyJFDtjqx7KHpN1zuoqISYqWaTfDto9hMdpS1y24=",
+        "last_results_hash": null,
+        "proposer_address": "g19zg5a0dghxa2dwqu92fgqvlhhlhmldutx4repn"
+      }
+    },
+    "block": {
+      "header": {
+        "version": "v1.0.0-rc.0",
+        "chain_id": "portal-loop",
+        "height": "5125",
+        "time": "2024-09-19T14:55:19.117392155Z",
+        "num_txs": "1",
+        "total_txs": "1",
+        "app_version": "",
+        "last_block_id": {
+          "hash": "ENPPw2E6HgRO6lPKF1JPixtZV6SGAqEMtAphVugPbwE=",
+          "parts": {
+            "total": "1",
+            "hash": "B5gtgduI+gnZkzjXBkyXp6L9y9KJfhovEH8Ocmz+FVI="
+          }
+        },
+        "last_commit_hash": "hXwJDzQEH2KeQceuEix8EipSVtWPsQBN4mQ3p54gAAs=",
+        "data_hash": "ZXgFnHVQ2MKJCwPHrdbryziPISHQWklDhkiQDtEFW20=",
+        "validators_hash": "KOYcYpktmbYZRrmgsbwijAxjYNEmxfIvo+BKvYlb/MU=",
+        "next_validators_hash": "KOYcYpktmbYZRrmgsbwijAxjYNEmxfIvo+BKvYlb/MU=",
+        "consensus_hash": "XnpWOYgADUtzmaS7Wk+oToT646WFCajgO6lsNWrfgKc=",
+        "app_hash": "BGqFyJFDtjqx7KHpN1zuoqISYqWaTfDto9hMdpS1y24=",
+        "last_results_hash": null,
+        "proposer_address": "g19zg5a0dghxa2dwqu92fgqvlhhlhmldutx4repn"
+      },
+      "data": {
+        "txs": [
+          "CtADCgwvdm0ubV9hZGRwa2cSvwMKKGcxamc4bXR1dHU5a2hoZndjNG54bXVoY3BmdGYwcGFqZGhmdnNxZjUSkgMKBWhlbGxvEg9nbm8ubGFuZC9yL3BrZzEa9wIKBWEuZ25vEu0CcGFja2FnZSBoZWxsbwoKaW1wb3J0ICgKCSJzdHJjb252IgoKCSJnbm8ubGFuZC9wL2RlbW8vYXZsIgopCgp2YXIgaGVsbG8gYXZsLlRyZWUKCnZhciBoZWxsb01hcCA9IG1ha2UobWFwW3N0cmluZ11zdHJpbmcpCgpmdW5jIGluaXQoKSB7Cglmb3IgaSA6PSAwOyBpIDwgMTAwMDsgaSsrIHsKCQlzIDo9IHN0cmNvbnYuSXRvYShpKQoJCWhlbGxvLlNldChzLCAiMTIzIikKCQloZWxsb01hcFtzXSA9ICIxMjMiCgl9Cn0KCmZ1bmMgUmVuZGVyKHMgc3RyaW5nKSBzdHJpbmcgewoJaWYgcyA9PSAibWFwIiB7CgkJcmV0dXJuIGhlbGxvTWFwWyIxMDAiXQoJfQoJcmVzLCBfIDo9IGhlbGxvLkdldCgiMTAwIikKCXJldHVybiByZXMuKHN0cmluZykKfQoSDQiAhK9fEgYxdWdub3Qafgo6ChMvdG0uUHViS2V5U2VjcDI1NmsxEiMKIQPhYTbbFx4y30iZNZQfBW4i+Jhj43OdCrfNSexCg5ydshJA6SJczVB2K9f+WOMMWvPA2QVhvQQVroNaPV1D30QtY5RctrwaW5IWxmQrbmU/+eGq0GTnoKv0VjmBr7n8UDxk+w=="
+        ]
+      },
+      "last_commit": {
+        "block_id": {
+          "hash": "ENPPw2E6HgRO6lPKF1JPixtZV6SGAqEMtAphVugPbwE=",
+          "parts": {
+            "total": "1",
+            "hash": "B5gtgduI+gnZkzjXBkyXp6L9y9KJfhovEH8Ocmz+FVI="
+          }
+        },
+        "precommits": [
+          {
+            "type": 2,
+            "height": "5124",
+            "round": "0",
+            "block_id": {
+              "hash": "ENPPw2E6HgRO6lPKF1JPixtZV6SGAqEMtAphVugPbwE=",
+              "parts": {
+                "total": "1",
+                "hash": "B5gtgduI+gnZkzjXBkyXp6L9y9KJfhovEH8Ocmz+FVI="
+              }
+            },
+            "timestamp": "2024-09-19T14:55:19.117392155Z",
+            "validator_address": "g19zg5a0dghxa2dwqu92fgqvlhhlhmldutx4repn",
+            "validator_index": "0",
+            "signature": "+FqBddQYabr6xYWrcdXVY8WsE2BjyU5zLVnC1ZTsEIoq+kuXkDAAK1ZMoQmQS0tJE5AGV+KGn7cRu/aNjvyWBw=="
+          }
+        ]
+      }
+    }
+  }
+}

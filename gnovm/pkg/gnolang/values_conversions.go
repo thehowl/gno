@@ -68,11 +68,11 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 				V: alloc.NewNative(rv),
 			}
 			return
-		} else {
-			goto GNO_CASE
 		}
 	}
-GNO_CASE:
+
+	// at this point, neither the source nor the destination targets are natives.
+
 	// special case for interface target
 	if t.Kind() == InterfaceKind {
 		if tv.IsUndefined() && tv.T == nil {
@@ -99,13 +99,14 @@ GNO_CASE:
 		return
 	}
 
-	validate := func(from Kind, to Kind, cmp func() bool) {
-		if isConst {
-			msg := fmt.Sprintf("cannot convert constant of type %s to %s", from, to)
+	validate := func(from Kind, to Kind, cmp func() bool) {}
+
+	if isConst {
+		validate = func(from Kind, to Kind, cmp func() bool) {
 			if cmp != nil && cmp() {
 				return
 			}
-			panic(msg)
+			panic(fmt.Sprintf("cannot convert constant of type %s to %s", from, to))
 		}
 	}
 
@@ -560,6 +561,7 @@ GNO_CASE:
 	case Uint8Kind:
 		switch k {
 		case IntKind:
+			// always valid
 			x := int64(tv.GetUint8())
 			tv.T = t
 			tv.SetInt(x)
@@ -570,20 +572,17 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt8(x)
 		case Int16Kind:
-			validate(Uint8Kind, Int16Kind, func() bool { return int64(tv.GetUint8()) <= math.MaxInt16 })
-
+			// always valid
 			x := int16(tv.GetUint8())
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
-			validate(Uint8Kind, Int32Kind, func() bool { return int64(tv.GetUint8()) <= math.MaxInt32 })
-
+			// always valid
 			x := int32(tv.GetUint8())
 			tv.T = t
 			tv.SetInt32(x)
 		case Int64Kind:
-			validate(Uint8Kind, Int64Kind, func() bool { return true })
-
+			// always valid
 			x := int64(tv.GetUint8())
 			tv.T = t
 			tv.SetInt64(x)

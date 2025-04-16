@@ -445,7 +445,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX well the following may be isn't idempotent,
 	// XXX so it is currently strange.
 	if bn, ok := n.(BlockNode); ok {
-		//findGotoLoopDefines(ctx, bn)
+		// findGotoLoopDefines(ctx, bn)
 		findHeapDefinesByUse(ctx, bn)
 		findHeapUsesDemoteDefines(ctx, bn)
 		findPackageSelectors(bn)
@@ -2888,7 +2888,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 	// vp := fle.GetPathForName(nil, name)
 	vp := nx.Path
 	vp.SetDepth(vp.Depth - uint8(depth))
-	//vp.SetDepth(vp.Depth - 1) // minus 1 for fle itself.
+	// vp.SetDepth(vp.Depth - 1) // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
@@ -3201,9 +3201,16 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	pn := packageOf(last)
 	// See comment in evalStaticTypeOfRaw.
 	if store != nil && pn.PkgPath != uversePkgPath {
-		pv := pn.NewPackage() // temporary
-		store = store.BeginTransaction(nil, nil, nil)
-		store.SetCachePackage(pv)
+		if pn.cachePV != nil {
+			pn.PrepareNewValues(pn.cachePV)
+			store = store.BeginTransaction(nil, nil, nil)
+			store.SetCachePackage(pn.cachePV)
+		} else {
+			pv := pn.NewPackage() // temporary
+			store = store.BeginTransaction(nil, nil, nil)
+			store.SetCachePackage(pv)
+			pn.cachePV = pv
+		}
 	}
 	m := NewMachine(pn.PkgPath, store)
 	tv := m.EvalStatic(last, x)
@@ -3260,9 +3267,16 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// package values are already there that weren't
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
-			pv := pn.NewPackage() // temporary
-			store = store.BeginTransaction(nil, nil, nil)
-			store.SetCachePackage(pv)
+			if pn.cachePV != nil {
+				pn.PrepareNewValues(pn.cachePV)
+				store = store.BeginTransaction(nil, nil, nil)
+				store.SetCachePackage(pn.cachePV)
+			} else {
+				pv := pn.NewPackage() // temporary
+				store = store.BeginTransaction(nil, nil, nil)
+				store.SetCachePackage(pv)
+				pn.cachePV = pv
+			}
 		}
 		m := NewMachine(pn.PkgPath, store)
 		t = m.EvalStaticTypeOf(last, x)

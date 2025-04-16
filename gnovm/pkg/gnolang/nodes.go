@@ -1535,6 +1535,9 @@ type PackageNode struct {
 	PkgPath string
 	PkgName Name
 	*FileSet
+
+	// for evalStaticTypeOf
+	cachePV *PackageValue
 }
 
 func PackageNodeLocation(path string) Location {
@@ -1608,9 +1611,9 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	pvl := len(block.Values)
 	pnl := len(x.Values)
 	// copy new top-level defined values/types.
-	if pvl < pnl {
-		nvs := make([]TypedValue, pnl-pvl)
-		copy(nvs, x.Values[pvl:pnl])
+	if delta := pnl - pvl; delta > 0 {
+		block.Values = append(block.Values, x.Values[pvl:pnl]...)
+		nvs := block.Values[pvl:pnl]
 		for i, tv := range nvs {
 			if fv, ok := tv.V.(*FuncValue); ok {
 				// copy function value and assign closure from package value.
@@ -1634,9 +1637,8 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 				}
 			}
 		}
-		block.Values = append(block.Values, nvs...)
-		return block.Values[pvl:]
-	} else if pvl > pnl {
+		return nvs
+	} else if delta < 0 {
 		panic("package size error")
 	} else {
 		// nothing to do
@@ -2457,8 +2459,10 @@ func validatePkgName(name string) error {
 
 // The distinction is used for validation to work
 // both before and after preprocessing.
-const missingResultNamePrefix = ".res."    // if there was no name
-const underscoreResultNamePrefix = ".res_" // if was underscore
+const (
+	missingResultNamePrefix    = ".res." // if there was no name
+	underscoreResultNamePrefix = ".res_" // if was underscore
+)
 
 func isUnnamedResult(name Name) bool {
 	return isMissingResult(name) || isUnderscoreResult(name)

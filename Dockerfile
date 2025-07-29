@@ -147,6 +147,8 @@ FROM        base AS gnocontribs
 COPY        --from=build-gnobro /gnoroot/build/gnobro                       /usr/bin/gnobro
 COPY        --from=build-contribs /gnoroot/build/gnogenesis                 /usr/bin/gnogenesis
 COPY        --from=build-gno /gnoroot/examples                              /gnoroot/examples
+COPY        --from=build-gno /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
+COPY        --from=build-gno /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 EXPOSE     22

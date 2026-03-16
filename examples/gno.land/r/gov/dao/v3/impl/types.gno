@@ -46,9 +46,10 @@ func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
 }
 
 type proposalStatus struct {
-	YesVotes memberstore.MembersByTier
-	NoVotes  memberstore.MembersByTier
-	AllVotes memberstore.MembersByTier
+	YesVotes     memberstore.MembersByTier
+	NoVotes      memberstore.MembersByTier
+	AbstainVotes memberstore.MembersByTier
+	AllVotes     memberstore.MembersByTier
 
 	Accepted bool
 	Denied   bool
@@ -64,24 +65,20 @@ func getMembers(cur realm) memberstore.MembersByTier {
 	return memberstore.Get()
 }
 
-func newProposalStatus(allowedToVote []string) *proposalStatus {
-	yv := memberstore.NewMembersByTier()
-	yv.SetTier(memberstore.T1)
-	yv.SetTier(memberstore.T2)
-	yv.SetTier(memberstore.T3)
-	nv := memberstore.NewMembersByTier()
-	nv.SetTier(memberstore.T1)
-	nv.SetTier(memberstore.T2)
-	nv.SetTier(memberstore.T3)
-	av := memberstore.NewMembersByTier()
-	av.SetTier(memberstore.T1)
-	av.SetTier(memberstore.T2)
-	av.SetTier(memberstore.T3)
+func newEmptyVoteStore() memberstore.MembersByTier {
+	v := memberstore.NewMembersByTier()
+	v.SetTier(memberstore.T1)
+	v.SetTier(memberstore.T2)
+	v.SetTier(memberstore.T3)
+	return v
+}
 
+func newProposalStatus(allowedToVote []string) *proposalStatus {
 	return &proposalStatus{
-		YesVotes: yv,
-		NoVotes:  nv,
-		AllVotes: av,
+		YesVotes:     newEmptyVoteStore(),
+		NoVotes:      newEmptyVoteStore(),
+		AbstainVotes: newEmptyVoteStore(),
+		AllVotes:     newEmptyVoteStore(),
 
 		TiersAllowedToVote: allowedToVote,
 
@@ -89,33 +86,30 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 	}
 }
 
-func (ps *proposalStatus) YesPercent() float64 {
-	var yp float64
+func (ps *proposalStatus) votePowerPercent(votes memberstore.MembersByTier) float64 {
+	var vp float64
 
 	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
 		power := memberstore.GetTierPower(tn, getMembers(cross))
-		ts := ps.YesVotes.GetTierSize(tn)
-
-		yp = yp + (power * float64(ts))
+		ts := votes.GetTierSize(tn)
+		vp = vp + (power * float64(ts))
 
 		return false
 	})
 
-	return (yp / ps.TotalPower) * 100
+	return (vp / ps.TotalPower) * 100
+}
+
+func (ps *proposalStatus) YesPercent() float64 {
+	return ps.votePowerPercent(ps.YesVotes)
 }
 
 func (ps *proposalStatus) NoPercent() float64 {
-	var np float64
+	return ps.votePowerPercent(ps.NoVotes)
+}
 
-	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
-		power := memberstore.GetTierPower(tn, getMembers(cross))
-		ts := ps.NoVotes.GetTierSize(tn)
-		np = np + (power * float64(ts))
-
-		return false
-	})
-
-	return (np / ps.TotalPower) * 100
+func (ps *proposalStatus) AbstainPercent() float64 {
+	return ps.votePowerPercent(ps.AbstainVotes)
 }
 
 func (ps *proposalStatus) IsAllowed(tier string) bool {
@@ -151,6 +145,7 @@ func (ps *proposalStatus) String() string {
 
 	sb.WriteString(ufmt.Sprintf("- YES PERCENT: %v%%\n", ps.YesPercent()))
 	sb.WriteString(ufmt.Sprintf("- NO PERCENT: %v%%\n", ps.NoPercent()))
+	sb.WriteString(ufmt.Sprintf("- ABSTAIN PERCENT: %v%%\n", ps.AbstainPercent()))
 
 	return sb.String()
 }
@@ -160,6 +155,7 @@ func StringifyVotes(ps *proposalStatus) string {
 
 	writeVotes(&sb, ps.YesVotes, "YES")
 	writeVotes(&sb, ps.NoVotes, "NO")
+	writeVotes(&sb, ps.AbstainVotes, "ABSTAIN")
 
 	if sb.String() == "" {
 		return "No one voted yet."

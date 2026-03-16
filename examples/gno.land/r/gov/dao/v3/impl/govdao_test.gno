@@ -306,6 +306,53 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))
 }
 
+func TestAbstainVote(cur realm, t *testing.T) {
+	loadMembers()
+
+	portfolio := "# This is my portfolio:\n\n- THINGS"
+	nm1 := testutils.TestAddress("nm1")
+
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewUserRealm(m1))
+	pid := dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
+
+	// m1, m11, m111 vote YES (3 T1 members = 9 power = 47.36%)
+	// m2, m3 vote YES (2 T2 members = 4 power = 21.05%)
+	// Total YES: 13/19 = 68.42%
+	for _, voter := range []address{m1, m11, m111} {
+		testing.SetOriginCaller(voter)
+		dao.MustVoteOnProposal(cross, dao.VoteRequest{
+			Option:     dao.YesVote,
+			ProposalID: pid,
+		})
+	}
+
+	for _, voter := range []address{m2, m3} {
+		testing.SetOriginCaller(voter)
+		dao.MustVoteOnProposal(cross, dao.VoteRequest{
+			Option:     dao.YesVote,
+			ProposalID: pid,
+		})
+	}
+
+	// m1111 abstains (1 T1 member = 3 power = 15.79%)
+	testing.SetOriginCaller(m1111)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.AbstainVote,
+		ProposalID: pid,
+	})
+
+	render := dao.Render(pid.String())
+	urequire.Equal(t, true, contains(render, "YES PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(render, "NO PERCENT: 0%"))
+	urequire.Equal(t, true, contains(render, "ABSTAIN PERCENT: 15.789473684210526%"))
+
+	// YES supermajority reached despite abstention
+	accepted := dao.ExecuteProposal(cross, pid)
+	urequire.Equal(t, true, accepted)
+	urequire.Equal(t, true, contains(dao.Render(pid.String()), "**PROPOSAL HAS BEEN ACCEPTED**"))
+}
+
 func contains(s, substr string) bool {
 	return strings.Index(s, substr) >= 0
 }

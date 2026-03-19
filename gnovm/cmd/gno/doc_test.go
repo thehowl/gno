@@ -24,6 +24,28 @@ func TestGnoDoc(t *testing.T) {
 			args:             []string{"doc", "There.Are.Too.Many.Dots"},
 			errShouldContain: "invalid arguments",
 		},
+
+		// Testing stdlib: testing-only package
+		{
+			args:                []string{"doc", "testing"},
+			stdoutShouldContain: "only available in gno test",
+		},
+		{
+			args:                []string{"doc", "testing.T"},
+			stdoutShouldContain: "type T",
+		},
+
+		// Testing stdlib: testing-only package (fmt)
+		{
+			args:                []string{"doc", "fmt"},
+			stdoutShouldContain: "only available in gno test",
+		},
+
+		// Regular stdlib unchanged (no testing stdlib counterpart)
+		{
+			args:                []string{"doc", "strconv"},
+			stdoutShouldContain: "func Itoa",
+		},
 	}
 	testMainCaseRun(t, tc)
 }

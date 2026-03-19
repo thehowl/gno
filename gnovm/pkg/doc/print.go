@@ -333,7 +333,11 @@ func (pkg *pkgPrinter) oneLineDecl(value *JSONValueDecl) string {
 		if typ != "" {
 			typeString = pkg.oneLineType(typ)
 		}
-		return fmt.Sprintf("%s %s %s%s", token, spec.Name, typeString, trailer)
+		result := fmt.Sprintf("%s %s %s%s", token, spec.Name, typeString, trailer)
+		if value.Testing {
+			result += " // testing-only"
+		}
+		return result
 	}
 	return ""
 }
@@ -527,7 +531,11 @@ func (pkg *pkgPrinter) funcSummary(funcs []*JSONFunc, showConstructors bool, typ
 func (pkg *pkgPrinter) typeSummary() {
 	for _, typ := range pkg.doc.Types {
 		if pkg.isExported(typ.Name) {
-			pkg.Printf("type %s %s\n", typ.Name, pkg.oneLineType(typ.Type))
+			testingSuffix := ""
+			if typ.Testing {
+				testingSuffix = " // testing-only"
+			}
+			pkg.Printf("type %s %s%s\n", typ.Name, pkg.oneLineType(typ.Type), testingSuffix)
 			// Now print the consts, vars, and constructors.
 			for _, value := range pkg.doc.Values {
 				for _, v := range value.Values {

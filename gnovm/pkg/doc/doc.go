@@ -195,8 +195,8 @@ var fpAbs = filepath.Abs
 // in their directories, such as @/examples and @/gnovm/stdlibs; modDirs specifies
 // directories which contain a gno.mod file.
 // If the package is not found locally, query the remote vm/qdoc using the queryClient (if not nil)
-func ResolveDocumentable(dirs, modDirs, args []string, unexported bool, queryClient ABCIQueryClient) (*Documentable, error) {
-	d := newDirs(dirs, modDirs)
+func ResolveDocumentable(dirs, testDirs, modDirs, args []string, unexported bool, queryClient ABCIQueryClient) (*Documentable, error) {
+	d := newDirs(dirs, testDirs, modDirs)
 
 	parsed, ok := parseArgs(args)
 	if !ok {

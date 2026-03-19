@@ -31,7 +31,8 @@ type JSONValueDecl struct {
 	Signature string       `json:"signature"`
 	Const     bool         `json:"const"`
 	Values    []*JSONValue `json:"values"`
-	Doc       string       `json:"doc"` // markdown
+	Doc       string       `json:"doc"`               // markdown
+	Testing   bool         `json:"testing,omitempty"`
 }
 
 type JSONValue struct {
@@ -54,6 +55,7 @@ type JSONFunc struct {
 	Doc       string       `json:"doc"` // markdown
 	Params    []*JSONField `json:"params"`
 	Results   []*JSONField `json:"results"`
+	Testing   bool         `json:"testing,omitempty"`
 }
 
 const (
@@ -82,6 +84,7 @@ type JSONType struct {
 	// TODO: Use omitzero when upgraded to Go 1.24
 	InterElems []*JSONInterfaceElement `json:"inter_elems,omitempty"` // interface methods or embedded types (Kind == "interface") (struct methods are in JSONDocumentation.Funcs)
 	Fields     []*JSONField            `json:"fields,omitempty"`      // struct fields (Kind == "struct")
+	Testing    bool                    `json:"testing,omitempty"`
 }
 
 // NewDocumentableFromMemPkg gets the pkgData from mpkg and returns a Documentable
@@ -296,7 +299,61 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		}
 	}
 
+	// Annotate testing-only symbols
+	d.annotateTestingSymbols(jsonDoc)
+
 	return jsonDoc, nil
+}
+
+// annotateTestingSymbols marks symbols that come from testing stdlibs with
+// Testing=true and appends " // testing-only" to their signatures. For
+// testing-only packages, modifies the PackageLine to indicate limited
+// availability.
+//
+// testingSymbols uses composite keys "symbol.accessible" matching symbolData:
+//   - top-level func/type/value: key is "Name." (accessible is empty)
+//   - method on type T:          key is "T.MethodName"
+//
+// JSONFunc uses different field names (Type for receiver, Name for method),
+// so the lookup must map accordingly.
+func (d *Documentable) annotateTestingSymbols(jsonDoc *JSONDocumentation) {
+	if d.pkgData == nil || len(d.pkgData.testingSymbols) == 0 {
+		return
+	}
+	ts := d.pkgData.testingSymbols
+
+	if d.pkgData.testingOnly {
+		jsonDoc.PackageLine += " - only available in gno test"
+	}
+
+	for _, f := range jsonDoc.Funcs {
+		// In symbolData: methods have symbol=RecvType, accessible=MethodName.
+		// In JSONFunc: methods have Type=RecvType, Name=MethodName; plain funcs have Type="".
+		var key string
+		if f.Type != "" {
+			key = f.Type + "." + f.Name
+		} else {
+			key = f.Name + "."
+		}
+		if ts[key] {
+			f.Testing = true
+			f.Signature += " // testing-only"
+		}
+	}
+	for _, t := range jsonDoc.Types {
+		if ts[t.Name+"."] {
+			t.Testing = true
+		}
+	}
+	for _, v := range jsonDoc.Values {
+		for _, val := range v.Values {
+			if ts[val.Name+"."] {
+				v.Testing = true
+				v.Signature += " // testing-only"
+				break
+			}
+		}
+	}
 }
 
 func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField {

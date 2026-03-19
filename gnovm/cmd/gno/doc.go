@@ -119,11 +119,13 @@ func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 
 	// select dirs from which to gather directories
 	dirs := []string{filepath.Join(cfg.rootDir, "gnovm/stdlibs")}
+	testDirs := []string{filepath.Join(cfg.rootDir, "gnovm/tests/stdlibs")}
 	queryClient, err := client.NewHTTPClient(cfg.remote, client.WithRequestTimeout(cfg.remoteTimeout))
 	if err != nil {
 		return err
 	}
-	res, err := doc.ResolveDocumentable(dirs, modDirs, args, cfg.unexported, queryClient)
+	res, err := doc.ResolveDocumentable(dirs, testDirs, modDirs, args, cfg.unexported, queryClient)
+
 	if res == nil {
 		return err
 	}

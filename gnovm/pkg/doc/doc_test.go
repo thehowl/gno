@@ -38,7 +38,7 @@ func TestResolveDocumentable(t *testing.T) {
 	p, err := os.Getwd()
 	require.NoError(t, err)
 	path := func(s string) string { return filepath.Join(p, "testdata/integ", s) }
-	dirs := newDirs([]string{path("")}, []string{path("mod")})
+	dirs := newDirs([]string{path("")}, nil, []string{path("mod")})
 	getDir := func(p string) bfsDir { return dirs.findDir(path(p))[0] }
 	pdata := func(p string, unexp bool) *pkgData {
 		pd, err := newPkgData(getDir(p), unexp)
@@ -150,7 +150,7 @@ func TestResolveDocumentable(t *testing.T) {
 				defer func() { fpAbs = filepath.Abs }()
 			}
 			result, err := ResolveDocumentable(
-				[]string{path("")}, []string{path("mod")},
+				[]string{path("")}, nil, []string{path("mod")},
 				tc.args, tc.unexp, tc.queryClient,
 			)
 			// we use stripFset because d.pkgData.fset contains sync/atomic values,
@@ -232,6 +232,72 @@ func TestDocument(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResolveDocumentable_TestingStdlibs(t *testing.T) {
+	p, err := os.Getwd()
+	require.NoError(t, err)
+	path := func(s string) string { return filepath.Join(p, "testdata/integ", s) }
+	testPath := func(s string) string { return filepath.Join(p, "testdata/integ_test", s) }
+
+	t.Run("testingOnlyPackage", func(t *testing.T) {
+		// Package that exists only in testing stdlibs
+		result, err := ResolveDocumentable(
+			[]string{path("")}, []string{testPath("")}, []string{path("mod")},
+			[]string{"testonly"}, false, nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.True(t, result.bfsDir.testingOnly, "should be marked as testing-only")
+		assert.Equal(t, "testonly", result.bfsDir.importPath)
+	})
+
+	t.Run("testingOnlyPackageDoc", func(t *testing.T) {
+		// Verify documentation output for testing-only package
+		result, err := ResolveDocumentable(
+			[]string{path("")}, []string{testPath("")}, []string{path("mod")},
+			[]string{"testonly"}, false, nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		var buf bytes.Buffer
+		err = result.WriteDocumentation(&buf, nil)
+		require.NoError(t, err)
+		output := buf.String()
+		assert.Contains(t, output, "only available in gno test")
+		assert.Contains(t, output, "// testing-only")
+	})
+
+	t.Run("overridePackageSymbol", func(t *testing.T) {
+		// rand exists in regular dirs; integ_test/rand adds TestExtra
+		result, err := ResolveDocumentable(
+			[]string{path("")}, []string{testPath("")}, []string{path("mod")},
+			[]string{"rand.TestExtra"}, false, nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "TestExtra", result.symbol)
+	})
+
+	t.Run("overridePackageDoc", func(t *testing.T) {
+		// rand override: TestExtra should have // testing, but existing symbols should not
+		result, err := ResolveDocumentable(
+			[]string{path("")}, []string{testPath("")}, []string{path("mod")},
+			[]string{"rand"}, false, nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		var buf bytes.Buffer
+		err = result.WriteDocumentation(&buf, nil)
+		require.NoError(t, err)
+		output := buf.String()
+		// TestExtra is testing-only, should have // testing
+		assert.Contains(t, output, "// testing-only")
+		// Package line should NOT say "only available in gno test" (it's an override)
+		assert.NotContains(t, output, "only available in gno test")
+	})
 }
 
 func Test_parseArgParts(t *testing.T) {

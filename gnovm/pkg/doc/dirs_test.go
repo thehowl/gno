@@ -34,7 +34,7 @@ func TestNewDirs_nonExisting(t *testing.T) {
 	de := wdJoin(t, "testdata/dirsempty")
 	require.NoError(t, os.MkdirAll(de, 0o755))
 
-	d := newDirs([]string{wdJoin(t, "non/existing/dir"), de}, []string{wdJoin(t, "and/this/one/neither")})
+	d := newDirs([]string{wdJoin(t, "non/existing/dir"), de}, nil, []string{wdJoin(t, "and/this/one/neither")})
 	for _, ok := d.Next(); ok; _, ok = d.Next() { //nolint:revive
 	}
 	log.Default().SetOutput(old)
@@ -51,7 +51,7 @@ func TestNewDirs_invalidModDir(t *testing.T) {
 	log.Default().SetOutput(&buf)
 	defer func() { log.Default().SetOutput(old) }() // in case of panic
 
-	d := newDirs(nil, []string{wdJoin(t, "testdata/dirs")})
+	d := newDirs(nil, nil, []string{wdJoin(t, "testdata/dirs")})
 	for _, ok := d.Next(); ok; _, ok = d.Next() { //nolint:revive
 	}
 	log.Default().SetOutput(old)
@@ -68,7 +68,7 @@ func tNewDirs(t *testing.T) (string, *bfsDirs) {
 	t.Setenv("GNOHOME", wdJoin(t, "testdata/dirsdep"))
 
 	return wdJoin(t, "testdata"),
-		newDirs([]string{wdJoin(t, "testdata/dirs")}, []string{wdJoin(t, "testdata/dirsmod")})
+		newDirs([]string{wdJoin(t, "testdata/dirs")}, nil, []string{wdJoin(t, "testdata/dirsmod")})
 }
 
 func TestDirs_findPackage(t *testing.T) {

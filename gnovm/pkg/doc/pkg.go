@@ -15,12 +15,14 @@ import (
 )
 
 type pkgData struct {
-	name      string
-	dir       bfsDir
-	fset      *token.FileSet
-	files     []*ast.File
-	testFiles []*ast.File
-	symbols   []symbolData
+	name           string
+	dir            bfsDir
+	fset           *token.FileSet
+	files          []*ast.File
+	testFiles      []*ast.File
+	symbols        []symbolData
+	testingOnly    bool            // entire package is testing-only
+	testingSymbols map[string]bool // symbol names that exist only in testing stdlibs
 }
 
 const (
@@ -39,12 +41,103 @@ type symbolData struct {
 }
 
 func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
-	mptype := gno.MPAnyProd
-	mpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, mptype)
+	if dir.testingOnly {
+		// Package exists only in testing stdlibs
+		mpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, gno.MPStdlibTest)
+		if err != nil {
+			return nil, fmt.Errorf("commands/doc: read files %q: %w", dir.dir, err)
+		}
+		pd, err := newPkgDataFromMemPkg(mpkg, unexported)
+		if err != nil {
+			return nil, err
+		}
+		pd.testingOnly = true
+		// Mark all symbols as testing using composite key "symbol.accessible"
+		pd.testingSymbols = make(map[string]bool)
+		for _, sym := range pd.symbols {
+			pd.testingSymbols[sym.symbol+"."+sym.accessible] = true
+		}
+		return pd, nil
+	}
+
+	if dir.testDir != "" {
+		// Override package: merge regular + testing stdlib files
+		return newPkgDataMerged(dir, unexported)
+	}
+
+	mpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, gno.MPAnyProd)
 	if err != nil {
 		return nil, fmt.Errorf("commands/doc: read files %q: %w", dir.dir, err)
 	}
 	return newPkgDataFromMemPkg(mpkg, unexported)
+}
+
+// newPkgDataMerged creates pkgData by merging regular and testing stdlib files.
+// Files from testDir override same-named files from dir; new files are appended.
+// Symbols that only appear in the test version are tracked in testingSymbols.
+func newPkgDataMerged(dir bfsDir, unexported bool) (*pkgData, error) {
+	// Read regular files
+	regularMpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, gno.MPAnyProd)
+	if err != nil {
+		return nil, fmt.Errorf("commands/doc: read files %q: %w", dir.dir, err)
+	}
+
+	// Get regular symbols first
+	regularPd, err := newPkgDataFromMemPkg(regularMpkg, unexported)
+	if err != nil {
+		return nil, err
+	}
+	regularSymbolSet := make(map[string]bool)
+	for _, sym := range regularPd.symbols {
+		key := sym.symbol + "." + sym.accessible
+		regularSymbolSet[key] = true
+	}
+
+	// Read test files
+	testMpkg, err := gno.ReadMemPackage(dir.testDir, dir.importPath, gno.MPStdlibTest)
+	if err != nil {
+		return nil, fmt.Errorf("commands/doc: read test files %q: %w", dir.testDir, err)
+	}
+
+	// Merge: test files override same-named regular files, new files are appended
+	mergedFiles := make([]*std.MemFile, 0, len(regularMpkg.Files)+len(testMpkg.Files))
+	testFileNames := make(map[string]bool)
+	for _, f := range testMpkg.Files {
+		testFileNames[f.Name] = true
+	}
+	// Add regular files that are not overridden
+	for _, f := range regularMpkg.Files {
+		if !testFileNames[f.Name] {
+			mergedFiles = append(mergedFiles, f)
+		}
+	}
+	// Add all test files (they override or are new)
+	mergedFiles = append(mergedFiles, testMpkg.Files...)
+
+	mergedMpkg := &std.MemPackage{
+		Name:  regularMpkg.Name,
+		Path:  regularMpkg.Path,
+		Files: mergedFiles,
+	}
+
+	mergedPd, err := newPkgDataFromMemPkg(mergedMpkg, unexported)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find symbols that are new in the merged set (testing-only symbols)
+	testingSymbols := make(map[string]bool)
+	for _, sym := range mergedPd.symbols {
+		key := sym.symbol + "." + sym.accessible
+		if !regularSymbolSet[key] {
+			testingSymbols[key] = true
+		}
+	}
+	if len(testingSymbols) > 0 {
+		mergedPd.testingSymbols = testingSymbols
+	}
+
+	return mergedPd, nil
 }
 
 func newPkgDataFromMemPkg(mpkg *std.MemPackage, unexported bool) (*pkgData, error) {

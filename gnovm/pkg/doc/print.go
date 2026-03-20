@@ -109,6 +109,14 @@ func (pkg *pkgPrinter) newlines(n int) {
 	}
 }
 
+// testingSuffix returns " // testing-only" if testing is true, "" otherwise.
+func testingSuffix(testing bool) string {
+	if testing {
+		return " // testing-only"
+	}
+	return ""
+}
+
 // emit prints the node signature. If pkg.opt.Source is true, it ignores the provided comment,
 // assuming the comment is in the node itself. Otherwise, the go/doc package
 // clears the stuff we don't want to print anyway. It's a bit of a magic trick.
@@ -333,11 +341,7 @@ func (pkg *pkgPrinter) oneLineDecl(value *JSONValueDecl) string {
 		if typ != "" {
 			typeString = pkg.oneLineType(typ)
 		}
-		result := fmt.Sprintf("%s %s %s%s", token, spec.Name, typeString, trailer)
-		if value.Testing {
-			result += " // testing-only"
-		}
-		return result
+		return fmt.Sprintf("%s %s %s%s%s", token, spec.Name, typeString, trailer, testingSuffix(value.Testing))
 	}
 	return ""
 }
@@ -394,7 +398,7 @@ func (pkg *pkgPrinter) allDoc() {
 	for _, fun := range pkg.doc.Funcs {
 		if fun.Type == "" && pkg.isExported(fun.Name) && pkg.constructor[fun.Name] == "" {
 			printHdr("FUNCTIONS")
-			pkg.emit(fun.Doc, fun.Signature)
+			pkg.emit(fun.Doc, fun.DisplaySignature())
 		}
 	}
 
@@ -521,7 +525,7 @@ func (pkg *pkgPrinter) funcSummary(funcs []*JSONFunc, showConstructors bool, typ
 		}
 		if pkg.isExported(fun.Name) {
 			if showConstructors || pkg.constructor[fun.Name] == "" {
-				pkg.Printf("%s\n", fun.Signature)
+				pkg.Printf("%s\n", fun.DisplaySignature())
 			}
 		}
 	}
@@ -531,11 +535,7 @@ func (pkg *pkgPrinter) funcSummary(funcs []*JSONFunc, showConstructors bool, typ
 func (pkg *pkgPrinter) typeSummary() {
 	for _, typ := range pkg.doc.Types {
 		if pkg.isExported(typ.Name) {
-			testingSuffix := ""
-			if typ.Testing {
-				testingSuffix = " // testing-only"
-			}
-			pkg.Printf("type %s %s%s\n", typ.Name, pkg.oneLineType(typ.Type), testingSuffix)
+			pkg.Printf("type %s %s%s\n", typ.Name, pkg.oneLineType(typ.Type), testingSuffix(typ.Testing))
 			// Now print the consts, vars, and constructors.
 			for _, value := range pkg.doc.Values {
 				for _, v := range value.Values {
@@ -561,7 +561,7 @@ func (pkg *pkgPrinter) typeSummary() {
 					continue
 				}
 				if pkg.isExported(constructor.Name) {
-					ToText(&pkg.buf, constructor.Signature, indent, "")
+					ToText(&pkg.buf, constructor.DisplaySignature(), indent, "")
 				}
 			}
 		}
@@ -625,7 +625,7 @@ func (pkg *pkgPrinter) symbolDoc(symbol string) {
 		}
 
 		// Symbol is a function.
-		pkg.emit(fun.Doc, fun.Signature)
+		pkg.emit(fun.Doc, fun.DisplaySignature())
 		found = true
 	}
 	// Constants and variables behave the same.
@@ -655,7 +655,7 @@ func (pkg *pkgPrinter) valueDoc(value *JSONValueDecl, printed map[*JSONValueDecl
 	if printed[value] {
 		return
 	}
-	pkg.emit(value.Doc, value.Signature)
+	pkg.emit(value.Doc, value.DisplaySignature())
 	printed[value] = true
 }
 
@@ -716,7 +716,7 @@ func (pkg *pkgPrinter) typeDoc(typ *JSONType) {
 					if pkg.opt.ShowAll {
 						pkg.valueDoc(value, printed)
 					} else {
-						pkg.Printf("%s\n", value.Signature)
+						pkg.Printf("%s\n", value.DisplaySignature())
 					}
 					break
 				}
@@ -731,7 +731,7 @@ func (pkg *pkgPrinter) typeDoc(typ *JSONType) {
 				continue
 			}
 			if pkg.isExported(constructor.Name) {
-				pkg.emit(constructor.Doc, constructor.Signature)
+				pkg.emit(constructor.Doc, constructor.DisplaySignature())
 			}
 		}
 		for _, meth := range pkg.doc.Funcs {
@@ -739,7 +739,7 @@ func (pkg *pkgPrinter) typeDoc(typ *JSONType) {
 				continue
 			}
 			if pkg.isExported(meth.Name) {
-				pkg.Printf("%s\n", meth.Signature)
+				pkg.Printf("%s\n", meth.DisplaySignature())
 				if pkg.opt.ShowAll && meth.Doc != "" {
 					pkg.Printf("    %s\n", meth.Doc)
 				}
@@ -852,7 +852,7 @@ func (pkg *pkgPrinter) printMethodDoc(symbol, method string) bool {
 			}
 			hasMethods = true
 			if pkg.match(method, meth.Name) {
-				pkg.emit(meth.Doc, meth.Signature)
+				pkg.emit(meth.Doc, meth.DisplaySignature())
 				found = true
 			}
 		}

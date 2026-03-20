@@ -298,6 +298,64 @@ func TestResolveDocumentable_TestingStdlibs(t *testing.T) {
 		// Package line should NOT say "only available in gno test" (it's an override)
 		assert.NotContains(t, output, "only available in gno test")
 	})
+
+	t.Run("testingOnlyJSON", func(t *testing.T) {
+		// Verify JSON output for testing-only package has Testing flags
+		// and clean signatures (no "// testing-only" baked in).
+		result, err := ResolveDocumentable(
+			[]string{path("")}, []string{testPath("")}, []string{path("mod")},
+			[]string{"testonly"}, false, nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		// WriteDocumentation lazily initializes pkgData, so call it first.
+		var buf bytes.Buffer
+		require.NoError(t, result.WriteDocumentation(&buf, nil))
+
+		jsonDoc, err := result.WriteJSONDocumentation(nil)
+		require.NoError(t, err)
+		assert.Contains(t, jsonDoc.PackageLine, "only available in gno test")
+		// All funcs/types should have Testing=true
+		for _, f := range jsonDoc.Funcs {
+			assert.True(t, f.Testing, "func %s should be testing", f.Name)
+			assert.NotContains(t, f.Signature, "// testing-only",
+				"raw signature for %s should not contain display suffix", f.Name)
+		}
+		for _, typ := range jsonDoc.Types {
+			assert.True(t, typ.Testing, "type %s should be testing", typ.Name)
+		}
+	})
+
+	t.Run("overrideJSON", func(t *testing.T) {
+		// Verify JSON output for override package: TestExtra is testing,
+		// existing symbols are not.
+		result, err := ResolveDocumentable(
+			[]string{path("")}, []string{testPath("")}, []string{path("mod")},
+			[]string{"rand"}, false, nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		// WriteDocumentation lazily initializes pkgData, so call it first.
+		var buf bytes.Buffer
+		require.NoError(t, result.WriteDocumentation(&buf, nil))
+
+		jsonDoc, err := result.WriteJSONDocumentation(nil)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonDoc.PackageLine, "only available in gno test")
+		var foundTestExtra bool
+		for _, f := range jsonDoc.Funcs {
+			if f.Name == "TestExtra" {
+				assert.True(t, f.Testing, "TestExtra should be testing")
+				assert.NotContains(t, f.Signature, "// testing-only")
+				foundTestExtra = true
+			} else {
+				assert.False(t, f.Testing, "func %s should not be testing", f.Name)
+			}
+		}
+		assert.True(t, foundTestExtra, "TestExtra should be present in JSON output")
+	})
 }
 
 func Test_parseArgParts(t *testing.T) {

@@ -58,6 +58,25 @@ type JSONFunc struct {
 	Testing   bool         `json:"testing,omitempty"`
 }
 
+// DisplaySignature returns the Signature with a " // testing-only" suffix
+// when Testing is true. Use this for terminal/text output; use Signature
+// directly for programmatic consumers.
+func (f *JSONFunc) DisplaySignature() string {
+	if f.Testing {
+		return f.Signature + " // testing-only"
+	}
+	return f.Signature
+}
+
+// DisplaySignature returns the Signature with a " // testing-only" suffix
+// when Testing is true.
+func (v *JSONValueDecl) DisplaySignature() string {
+	if v.Testing {
+		return v.Signature + " // testing-only"
+	}
+	return v.Signature
+}
+
 const (
 	structKind    = "struct"
 	interfaceKind = "interface"
@@ -306,16 +325,13 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 }
 
 // annotateTestingSymbols marks symbols that come from testing stdlibs with
-// Testing=true and appends " // testing-only" to their signatures. For
-// testing-only packages, modifies the PackageLine to indicate limited
-// availability.
+// Testing=true. For testing-only packages, modifies the PackageLine to
+// indicate limited availability. The " // testing-only" display suffix is
+// added at render time by pkgPrinter, not here, so that the raw Signature
+// remains clean for programmatic consumers.
 //
-// testingSymbols uses composite keys "symbol.accessible" matching symbolData:
-//   - top-level func/type/value: key is "Name." (accessible is empty)
-//   - method on type T:          key is "T.MethodName"
-//
-// JSONFunc uses different field names (Type for receiver, Name for method),
-// so the lookup must map accordingly.
+// JSONFunc uses different field names than symbolData: methods have
+// Type=RecvType, Name=MethodName; plain funcs have Type="".
 func (d *Documentable) annotateTestingSymbols(jsonDoc *JSONDocumentation) {
 	if d.pkgData == nil || len(d.pkgData.testingSymbols) == 0 {
 		return
@@ -327,29 +343,25 @@ func (d *Documentable) annotateTestingSymbols(jsonDoc *JSONDocumentation) {
 	}
 
 	for _, f := range jsonDoc.Funcs {
-		// In symbolData: methods have symbol=RecvType, accessible=MethodName.
-		// In JSONFunc: methods have Type=RecvType, Name=MethodName; plain funcs have Type="".
-		var key string
+		var key symbolKey
 		if f.Type != "" {
-			key = f.Type + "." + f.Name
+			key = symbolKey{f.Type, f.Name}
 		} else {
-			key = f.Name + "."
+			key = symbolKey{f.Name, ""}
 		}
 		if ts[key] {
 			f.Testing = true
-			f.Signature += " // testing-only"
 		}
 	}
 	for _, t := range jsonDoc.Types {
-		if ts[t.Name+"."] {
+		if ts[symbolKey{t.Name, ""}] {
 			t.Testing = true
 		}
 	}
 	for _, v := range jsonDoc.Values {
 		for _, val := range v.Values {
-			if ts[val.Name+"."] {
+			if ts[symbolKey{val.Name, ""}] {
 				v.Testing = true
-				v.Signature += " // testing-only"
 				break
 			}
 		}

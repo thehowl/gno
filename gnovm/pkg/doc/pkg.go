@@ -21,8 +21,16 @@ type pkgData struct {
 	files          []*ast.File
 	testFiles      []*ast.File
 	symbols        []symbolData
-	testingOnly    bool            // entire package is testing-only
-	testingSymbols map[string]bool // symbol names that exist only in testing stdlibs
+	testingOnly    bool                  // entire package is testing-only
+	testingSymbols map[symbolKey]bool    // symbols that exist only in testing stdlibs
+}
+
+// symbolKey identifies a symbol using the same convention as symbolData:
+// top-level items have symbol=Name, accessible=""; methods have
+// symbol=RecvType, accessible=MethodName.
+type symbolKey struct {
+	symbol     string
+	accessible string
 }
 
 const (
@@ -52,10 +60,9 @@ func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
 			return nil, err
 		}
 		pd.testingOnly = true
-		// Mark all symbols as testing using composite key "symbol.accessible"
-		pd.testingSymbols = make(map[string]bool)
+		pd.testingSymbols = make(map[symbolKey]bool)
 		for _, sym := range pd.symbols {
-			pd.testingSymbols[sym.symbol+"."+sym.accessible] = true
+			pd.testingSymbols[symbolKey{sym.symbol, sym.accessible}] = true
 		}
 		return pd, nil
 	}
@@ -87,10 +94,9 @@ func newPkgDataMerged(dir bfsDir, unexported bool) (*pkgData, error) {
 	if err != nil {
 		return nil, err
 	}
-	regularSymbolSet := make(map[string]bool)
+	regularSymbolSet := make(map[symbolKey]bool)
 	for _, sym := range regularPd.symbols {
-		key := sym.symbol + "." + sym.accessible
-		regularSymbolSet[key] = true
+		regularSymbolSet[symbolKey{sym.symbol, sym.accessible}] = true
 	}
 
 	// Read test files
@@ -126,9 +132,9 @@ func newPkgDataMerged(dir bfsDir, unexported bool) (*pkgData, error) {
 	}
 
 	// Find symbols that are new in the merged set (testing-only symbols)
-	testingSymbols := make(map[string]bool)
+	testingSymbols := make(map[symbolKey]bool)
 	for _, sym := range mergedPd.symbols {
-		key := sym.symbol + "." + sym.accessible
+		key := symbolKey{sym.symbol, sym.accessible}
 		if !regularSymbolSet[key] {
 			testingSymbols[key] = true
 		}

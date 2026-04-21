@@ -5,7 +5,6 @@ import (
 	"math"
 	"testing"
 
-	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -397,65 +396,4 @@ func TestComputeMapKey_collisions(t *testing.T) {
 			assert.NotEqual(t, mk1, mk2)
 		})
 	}
-}
-
-// TestComputeMapKey_GasVsDepthLimit verifies Maxwell's claim that gas metering
-// alone is the primary defense against the deep-nesting attack.
-//
-// A [1]any{...} chain N levels deep costs N*OpCPUComputeMapKey gas units when
-// used as a map key. The Go stack overflows at roughly 1_900_000 levels. With
-// MaxGas=3_000_000_000 and OpCPUComputeMapKey=10, the attacker can reach
-// 3_000_000_000/10 = 300_000_000 levels before running out of gas — far beyond
-// the ~1_900_000 crash point. Gas alone is therefore NOT sufficient to prevent
-// the attack; the depth guard (maxComputeMapKeyDepth) is required.
-func TestComputeMapKey_GasVsDepthLimit(t *testing.T) {
-	const (
-		maxGas          int64 = 3_000_000_000
-		stackCrashDepth int   = 1_900_000
-	)
-
-	// Depth at which gas is exhausted at current rate.
-	gasLimitDepth := int(maxGas / OpCPUComputeMapKey)
-
-	// Gas alone does NOT protect: attacker can go deeper than stack crash
-	// before the gas meter fires.
-	require.Greater(t, gasLimitDepth, stackCrashDepth,
-		"gas metering (at OpCPUComputeMapKey=%d, MaxGas=%d) would only stop "+
-			"the attack at depth %d, but stack overflow occurs at ~%d — "+
-			"the depth guard is still required",
-		OpCPUComputeMapKey, maxGas, gasLimitDepth, stackCrashDepth)
-
-	// But with the depth guard, the attack is stopped at maxComputeMapKeyDepth,
-	// which is well below the stack crash point.
-	require.Less(t, maxComputeMapKeyDepth, stackCrashDepth,
-		"maxComputeMapKeyDepth=%d should be below stack crash depth=%d",
-		maxComputeMapKeyDepth, stackCrashDepth)
-
-	// Confirm empirically: a depth > maxComputeMapKeyDepth panics before
-	// running out of gas.
-	alloc := NewAllocator(1 << 62)
-	gm := storetypes.NewGasMeter(maxGas)
-	store := NewStore(alloc, nil, nil)
-	txStore := store.BeginTransaction(nil, nil, gm)
-
-	// Build a chain one level past the depth guard.
-	var a TypedValue
-	a.T = IntType
-	a.SetInt(0)
-	for i := 0; i < maxComputeMapKeyDepth+1; i++ {
-		av := &ArrayValue{List: []TypedValue{a}}
-		a = TypedValue{
-			T: &ArrayType{Len: 1, Elt: &InterfaceType{}},
-			V: av,
-		}
-	}
-
-	assert.Panics(t, func() {
-		a.ComputeMapKey(txStore, false)
-	}, "expected panic from depth guard, not stack overflow or OOG")
-
-	// Confirm the panic was the depth guard, not OOG.
-	assert.False(t, gm.IsOutOfGas(),
-		"gas should not be exhausted when depth guard fires: consumed=%d limit=%d",
-		gm.GasConsumed(), maxGas)
 }

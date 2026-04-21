@@ -187,7 +187,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
 		case DirectiveGas:
-			match(dir, strconv.FormatInt(m.GasMeter.GasConsumed(), 10))
+			match(dir, strconv.FormatInt(m.GasMeter.GasConsumed()-result.MainGasOffset, 10))
 		case DirectiveStorage:
 			rlmDiff := realmDiffsString(m.Store.RealmStorageDiffs())
 			match(dir, rlmDiff)
@@ -262,6 +262,8 @@ type runResult struct {
 	GnoStacktrace string
 	// Set if this was recovered from a panic.
 	GoPanicStack []byte
+	// Gas consumed before main() runs; subtracted so // Gas: measures only main().
+	MainGasOffset int64
 }
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck bool) (rr runResult) {
@@ -365,7 +367,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.SetActivePackage(pv)
 		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
 		// Run (add) file, and then run main().
+		// Record gas consumed by init so // Gas: measures only main().
 		m.RunFiles(fn)
+		rr.MainGasOffset = m.GasMeter.GasConsumed()
 		m.RunMain()
 	} else { // Realm case.
 		gno.DisableDebug() // until main call.
@@ -408,15 +412,15 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
 
-		// Clear store.opslog from init function(s).
+		// Clear store.opslog from init function(s); record gas so // Gas: measures only main().
 		m.Store.SetLogStoreOps(opslog) // resets.
+		rr.MainGasOffset = m.GasMeter.GasConsumed()
 		m.RunMainMaybeCrossing()
 	}
-	return runResult{
-		Output:         opts.filetestBuffer.String(),
-		GnoStacktrace:  m.Stacktrace().String(),
-		TypeCheckError: tcError,
-	}
+	rr.Output = opts.filetestBuffer.String()
+	rr.GnoStacktrace = m.Stacktrace().String()
+	rr.TypeCheckError = tcError
+	return
 }
 
 // ---------------------------------------

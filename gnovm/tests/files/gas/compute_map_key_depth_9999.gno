@@ -1,21 +1,33 @@
 // MAXALLOC: 500000000
 //
-// Shows gas consumed when a 9 999-level [1]any{} chain is used as a map key.
+// Gas consumed when a 9 999-level [1]any{} chain is used as a map key.
+// (Note: // Gas: measures main() only; package-init overhead is excluded.)
 //
-// The total gas is dominated by building the chain (~856 000 gas/level at
-// the current calibration), not by ComputeMapKey traversal:
+// The build cost dominates: ~856 000 gas/level at the current calibration.
+// ComputeMapKey itself adds only 10 gas/level (OpCPUComputeMapKey).
 //
-//   ComputeMapKey contribution: 9 999 levels × OpCPUComputeMapKey(10) ≈ 100 000 gas
-//   Build contribution:         9 999 levels × ~856 000 gas            ≈ 8 557 000 000 gas
+//   Build (9 999 levels): ~856 000 gas/level × 9 999  ≈  8 557 000 000 gas
+//   ComputeMapKey:         10 gas/level    × 9 999  ≈      100 000 gas
 //
-// Extrapolating to the Go-stack crash depth (~1 900 000 levels):
+// MaxGas on-chain: 3 000 000 000
 //
-//   ComputeMapKey gas at crash depth: 1 900 000 × 10 = 19 000 000
-//   MaxGas on-chain:                                   3 000 000 000
-//   Gas headroom:                              ×157 — crash happens long before OOG
+// Single-transaction build limit: 3 000 000 000 / 856 000 ≈ 3 500 levels.
 //
-// Conclusion: OpCPUComputeMapKey=10 is too cheap to stop the attack.
-// The depth guard (maxComputeMapKeyDepth=10 000) is the correct defence.
+// So 9 999 levels is impossible in a single transaction.  However, a realm
+// can accumulate depth across multiple transactions: each call to
+//
+//   func Extend() { stored = [1]any{stored} }
+//
+// wraps only the top-level reference (O(1) gas), adding one level at
+// ~856 000 gas.  Three transactions of MaxGas can each add ~3 500 levels,
+// reaching depth 10 500 — past the 10 000-level depth guard.
+//
+// The depth guard (maxComputeMapKeyDepth=10 000) is therefore the correct
+// defence: it panics safely on the 4th transaction's ComputeMapKey call,
+// long before the Go-stack overflow at ~1 900 000 levels.
+//
+// Raising OpCPUComputeMapKey would not help: even at the guard boundary
+// (10 000 levels × 10 gas = 100 000 gas) the gas contribution is negligible.
 //
 // See also: compute_map_key_crash_depth_known.gno
 package main
@@ -34,4 +46,4 @@ func main() {
 // ok
 
 // Gas:
-// 8561226876
+// 8561226097
